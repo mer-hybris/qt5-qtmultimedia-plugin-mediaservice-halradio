@@ -22,6 +22,7 @@
 
 #include <QDebug>
 #include <QRegExp>
+#include <QLoggingCategory>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -40,6 +41,8 @@
 extern "C" {
 #include <hybris/common/binding.h>
 }
+
+Q_LOGGING_CATEGORY(log, "radio.fm", QtWarningMsg)
 
 // HAL uses unsigned int kHz, Qt uses int Hz
 #define FREQ_HAL_TO_QT(f)       (static_cast<int>(f) * 1000)
@@ -81,7 +84,6 @@ struct HalPrivate {
 
 FMRadioHalControl::FMRadioHalControl()
     : QObject()
-    , m_log("radio.fm")
     , m_hal(new HalPrivate)
     , m_error(QRadioTuner::NoError)
     , m_rdsError(QRadioData::NoError)
@@ -103,8 +105,6 @@ FMRadioHalControl::FMRadioHalControl()
     , m_programType(0)  // Undefined
     , m_radioText()
 {
-    m_log.setEnabled(QtDebugMsg, false);
-
     m_seekTimer->setInterval(SEARCH_SCAN_TIMEOUT_MS);
     m_seekTimer->setSingleShot(false);
     connect(m_seekTimer, SIGNAL(timeout()),
@@ -155,14 +155,14 @@ void FMRadioHalControl::openRadioMetadata()
         NULL
     };
 
-    qCDebug(m_log) << "Open radio metadata library.";
+    qCDebug(log) << "Open radio metadata library.";
     for (int i = 0; lib_paths[i]; ++i) {
         if ((m_hal->libradio_metadata_handle = android_dlopen(lib_paths[i], RTLD_LAZY)))
             break;
     }
 
     if (!m_hal->libradio_metadata_handle) {
-        qCWarning(m_log) << "Failed to open metadata library.";
+        qCWarning(log) << "Failed to open metadata library.";
         setRdsError(QRadioData::ResourceError);
         return;
     }
@@ -177,28 +177,28 @@ void FMRadioHalControl::openRadioMetadata()
     if (m_hal->metadata_check &&
         m_hal->metadata_get_count &&
         m_hal->metadata_get_at_index) {
-        qCDebug(m_log) << "Radio metadata enabled.";
+        qCDebug(log) << "Radio metadata enabled.";
     } else {
-        qCDebug(m_log) << "Failed to enable metadata.";
+        qCDebug(log) << "Failed to enable metadata.";
         setRdsError(QRadioData::ResourceError);
     }
 }
 
 void FMRadioHalControl::openRadio()
 {
-    qCDebug(m_log) << "Open radio HAL.";
+    qCDebug(log) << "Open radio HAL.";
     hw_get_module_by_class(RADIO_HARDWARE_MODULE_ID,
                            RADIO_HARDWARE_MODULE_ID_FM,
                            (const hw_module_t**) &m_hal->hwmod);
     if (!m_hal->hwmod) {
-        qCWarning(m_log) << "Failed to get " RADIO_HARDWARE_MODULE_ID "." RADIO_HARDWARE_MODULE_ID_FM;
+        qCWarning(log) << "Failed to get " RADIO_HARDWARE_MODULE_ID "." RADIO_HARDWARE_MODULE_ID_FM;
         return;
     }
 
     int ret;
 
     if ((ret = radio_hw_device_open(m_hal->hwmod, &m_hal->radiohw)) != 0) {
-        qCWarning(m_log) << "Failed to open radio device:" << ret;
+        qCWarning(log) << "Failed to open radio device:" << ret;
         return;
     }
 
@@ -210,7 +210,7 @@ void FMRadioHalControl::openRadio()
 
     if (!setRadioConfig(RADIO_BAND_FM, radio_demephasis_for_region(RADIO_REGION_ITU_1))) {
         if (!setRadioConfig(RADIO_BAND_FM, radio_demephasis_for_region(RADIO_REGION_ITU_2))) {
-            qCWarning(m_log) << "Failed to get configuration for tuner, using default ITU-1 FM.";
+            qCWarning(log) << "Failed to get configuration for tuner, using default ITU-1 FM.";
             setRadioConfigFallback();
         }
     }
@@ -266,7 +266,7 @@ void FMRadioHalControl::closeRadio()
     if (!m_hal || !m_hal->radiohw)
         return;
 
-    qCDebug(m_log) << "Close HAL.";
+    qCDebug(log) << "Close HAL.";
     radio_hw_device_close(m_hal->radiohw);
     m_hal->radiohw = 0;
 }
@@ -322,7 +322,7 @@ void FMRadioHalControl::setFrequency(int newFrequency)
 
     m_currentFreq = frequency;
 
-    qCDebug(m_log) << "Set frequency" << m_currentFreq;
+    qCDebug(log) << "Set frequency" << m_currentFreq;
 
     if (!tunerEnabled())
         return;
@@ -394,7 +394,7 @@ void FMRadioHalControl::seek(radio_direction_t direction)
         if (!m_searchAll)
             setSearching(true);
     } else
-        qCWarning(m_log) << "Failed to scan" << (direction == RADIO_DIRECTION_UP ? "forward:" : "backward:") << ret;
+        qCWarning(log) << "Failed to scan" << (direction == RADIO_DIRECTION_UP ? "forward:" : "backward:") << ret;
 }
 
 void FMRadioHalControl::resetRDS()
@@ -436,7 +436,7 @@ void FMRadioHalControl::setStereoEnabled(bool enabled)
 {
     if (enabled != m_stereoEnabled) {
         m_stereoEnabled = enabled;
-        qCDebug(m_log) << "Channel count changes to" << (m_stereoEnabled ? "stereo" : "mono");
+        qCDebug(log) << "Channel count changes to" << (m_stereoEnabled ? "stereo" : "mono");
         emit stereoStatusChanged(m_stereoEnabled);
     }
 }
@@ -455,14 +455,14 @@ void FMRadioHalControl::handleSeekTimeout()
 {
     if (m_searchAll) {
         if (m_searchMode == QRadioTuner::SearchFast) {
-            qCDebug(m_log) << "SearchFast timeout. Cancel search.";
+            qCDebug(log) << "SearchFast timeout. Cancel search.";
             cancelSearch();
         } else {
             if (m_firstFoundFrequency == 0) {
-                qCDebug(m_log) << "SearchGetStationId timeout. Cancel search.";
+                qCDebug(log) << "SearchGetStationId timeout. Cancel search.";
                 cancelSearch();
             } else {
-                qCDebug(m_log) << "SearchGetStationId found channel" << m_currentFreq << ": \"\" (timeout while waiting RDS).";
+                qCDebug(log) << "SearchGetStationId found channel" << m_currentFreq << ": \"\" (timeout while waiting RDS).";
                 emit stationFound(FREQ_HAL_TO_QT(m_currentFreq), m_stationId);
                 searchForward();
             }
@@ -514,7 +514,7 @@ void FMRadioHalControl::searchAllStations(QRadioTuner::SearchMode searchMode)
     m_searchRange = m_hal->config.upper_limit - m_hal->config.lower_limit;
     m_lastFrequency = m_currentFreq - m_hal->config.lower_limit;
 
-    qCDebug(m_log) << "Search all stations, start from" << m_currentFreq << "range" << m_searchRange;
+    qCDebug(log) << "Search all stations, start from" << m_currentFreq << "range" << m_searchRange;
     setSearching(true);
     searchForward();
 }
@@ -526,19 +526,19 @@ void FMRadioHalControl::cancelSearch()
 
     int ret = m_hal->tuner->cancel(m_hal->tuner);
 
-    qCDebug(m_log) << "Cancel" << (m_searchAll ? "searchAll" : "search");
+    qCDebug(log) << "Cancel" << (m_searchAll ? "searchAll" : "search");
     m_searchAll = false;
     m_searchAllLast = false;
     m_searchWaitForRDS = false;
     setSearching(false);
 
     if (ret != 0)
-        qCWarning(m_log) << "Failed to cancel:" << ret;
+        qCWarning(log) << "Failed to cancel:" << ret;
 }
 
 void FMRadioHalControl::handleHwFailure()
 {
-    qCWarning(m_log) << "Tuner HW Failure, reset tuner to stopped state.";
+    qCWarning(log) << "Tuner HW Failure, reset tuner to stopped state.";
     setError(QRadioTuner::ResourceError);
     stop();
 }
@@ -548,17 +548,17 @@ void FMRadioHalControl::setTuning()
     if (!m_hal || !m_hal->tuner || m_currentFreq == 0)
         return;
 
-    qCDebug(m_log) << "Apply frequency" << m_currentFreq;
+    qCDebug(log) << "Apply frequency" << m_currentFreq;
 
     int ret = m_hal->tuner->tune(m_hal->tuner, m_currentFreq, 0);
     if (ret != 0)
-        qCWarning(m_log) << "Radio tune failed:" << ret;
+        qCWarning(log) << "Radio tune failed:" << ret;
 }
 
 void FMRadioHalControl::handleConfig(int band, bool stereo)
 {
     if (!m_tunerReady) {
-        qCDebug(m_log) << "Initial tuner config received.";
+        qCDebug(log) << "Initial tuner config received.";
         m_tunerReady = true;
         setError(QRadioTuner::NoError);
         setTuning();
@@ -573,7 +573,7 @@ void FMRadioHalControl::handleAntenna(bool connected)
 {
     if (connected != m_antennaConnected) {
         m_antennaConnected = connected;
-        qCDebug(m_log) << "Antenna changes to " << (m_antennaConnected ? "connected" : "disconnected");
+        qCDebug(log) << "Antenna changes to " << (m_antennaConnected ? "connected" : "disconnected");
         emit antennaConnectedChanged(m_antennaConnected);
     }
 }
@@ -585,7 +585,7 @@ bool FMRadioHalControl::tunedSearchAll(unsigned channel)
 
     if (m_firstFoundFrequency > 0) {
         if (m_searchMode == QRadioTuner::SearchFast) {
-            qCDebug(m_log) << "SearchFast found channel" << channel;
+            qCDebug(log) << "SearchFast found channel" << channel;
             emit stationFound(FREQ_HAL_TO_QT(channel), m_stationId);
         }
     } else
@@ -607,17 +607,17 @@ bool FMRadioHalControl::tunedSearchAll(unsigned channel)
         }
     } else {
         if (m_searchRange > 0) {
-            qCDebug(m_log) << "SearchGetStationId channel" << channel << "tuned, wait for RDS.";
+            qCDebug(log) << "SearchGetStationId channel" << channel << "tuned, wait for RDS.";
             return true;
         }
     }
 
     if (m_firstFoundFrequency != channel) {
         if (m_searchMode == QRadioTuner::SearchFast) {
-            qCDebug(m_log) << "SearchFast found channel" << m_firstFoundFrequency;
+            qCDebug(log) << "SearchFast found channel" << m_firstFoundFrequency;
             emit stationFound(FREQ_HAL_TO_QT(m_firstFoundFrequency), m_stationId);
         } else {
-            qCDebug(m_log) << "SearchGetStationId channel" << channel << "tuned, wait for RDS.";
+            qCDebug(log) << "SearchGetStationId channel" << channel << "tuned, wait for RDS.";
             m_searchAllLast = true;
             return true;
         }
@@ -642,10 +642,10 @@ void FMRadioHalControl::handleTuned(unsigned channel, bool stereo)
         m_searchAll = false;
         m_searchWaitForRDS = false;
         setSearching(false);
-        qCDebug(m_log) << "Search done.";
+        qCDebug(log) << "Search done.";
     }
 
-    qCDebug(m_log) << "Tuned channel" << m_currentFreq << (stereo ? "stereo" : "mono");
+    qCDebug(log) << "Tuned channel" << m_currentFreq << (stereo ? "stereo" : "mono");
     emit frequencyChanged(FREQ_HAL_TO_QT(m_currentFreq));
 
     setSearching(false);
@@ -661,7 +661,7 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
 
     int ret;
     if ((ret = m_hal->metadata_check(event->metadata)) != 0) {
-        qCDebug(m_log) << "Radio metadata consistency check failed:" << ret;
+        qCDebug(log) << "Radio metadata consistency check failed:" << ret;
         return;
     }
 
@@ -676,7 +676,7 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
         unsigned size;
 
         if ((ret = m_hal->metadata_get_at_index(event->metadata, i, &key, &dataType, &value, &size)) != 0) {
-            qCDebug(m_log) << "Failed to get metadata from index" << i << ":" << ret;
+            qCDebug(log) << "Failed to get metadata from index" << i << ":" << ret;
             return;
         }
 
@@ -684,16 +684,16 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
             case RADIO_METADATA_TYPE_TEXT: {
                 static const QRegExp regExp("[^a-zA-Z0-9 -_,;.:!#%&/()=?@£$+]");
                 QString str = QString::fromUtf8(reinterpret_cast<const char*>(value));
-                qCDebug(m_log) << "Raw data for key" << key << ":" << str;
+                qCDebug(log) << "Raw data for key" << key << ":" << str;
                 str = str.remove(regExp).trimmed();
 
                 switch (key) {
                     case RADIO_METADATA_KEY_RDS_PI:
-                        qCDebug(m_log) << "RDS_PI:" << str;
+                        qCDebug(log) << "RDS_PI:" << str;
                         if (m_stationId != str) {
                             m_stationId = str;
                             if (m_searchWaitForRDS) {
-                                qCDebug(m_log) << "SearchGetStationId found channel" << m_currentFreq << ":" << m_stationId;
+                                qCDebug(log) << "SearchGetStationId found channel" << m_currentFreq << ":" << m_stationId;
                                 emit stationFound(FREQ_HAL_TO_QT(m_currentFreq), m_stationId);
                                 emit seekNextChannel();
                             } else
@@ -702,7 +702,7 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
                         break;
 
                     case RADIO_METADATA_KEY_RDS_PS:
-                        qCDebug(m_log) << "RDS_PS:" << str;
+                        qCDebug(log) << "RDS_PS:" << str;
                         if (m_stationName != str) {
                             m_stationName = str;
                             emit stationNameChanged(m_stationName);
@@ -710,7 +710,7 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
                         break;
 
                     case RADIO_METADATA_KEY_TITLE:
-                        qCDebug(m_log) << "TITLE:" << str;
+                        qCDebug(log) << "TITLE:" << str;
                         if (m_radioText != str) {
                             m_radioText = str;
                             emit radioTextChanged(m_radioText);
@@ -726,7 +726,7 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
                 switch (key) {
                     case RADIO_METADATA_KEY_RDS_PTY:
                         if (m_programType != *integer) {
-                            qCDebug(m_log) << "RDS_PTY:" << *integer;
+                            qCDebug(log) << "RDS_PTY:" << *integer;
                             m_programType = *integer;
                             emit programTypeChanged(programTypeValue(0, m_programType));
                             emit programTypeNameChanged(programTypeNameString(0, m_programType));
@@ -735,7 +735,7 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
 
                     case RADIO_METADATA_KEY_RBDS_PTY:
                         if (m_programType != *integer) {
-                            qCDebug(m_log) << "RBDS_PTY:" << *integer;
+                            qCDebug(log) << "RBDS_PTY:" << *integer;
                             m_programType = *integer;
                             emit programTypeChanged(programTypeValue(1, m_programType));
                             emit programTypeNameChanged(programTypeNameString(1, m_programType));
@@ -750,18 +750,18 @@ void FMRadioHalControl::handleMetadata(const radio_hal_event_t *event)
 
 void FMRadioHalControl::handleTA(bool enabled)
 {
-    qCDebug(m_log) << "Radio TA changes to " << (enabled ? "true" : "false");
+    qCDebug(log) << "Radio TA changes to " << (enabled ? "true" : "false");
 }
 
 // Alternative Frequency switch
 void FMRadioHalControl::handleAFSwitch(bool /* unused */)
 {
-    qCDebug(m_log) << "Radio AF switch";
+    qCDebug(log) << "Radio AF switch";
 }
 
 void FMRadioHalControl::handleEA(bool enabled)
 {
-    qCDebug(m_log) << "Radio EA changes to " << (enabled ? "true" : "false");
+    qCDebug(log) << "Radio EA changes to " << (enabled ? "true" : "false");
 }
 
 // Called in radio event callback thread
@@ -825,9 +825,9 @@ void FMRadioHalControl::start()
                                          &m_hal->tuner);
 
     if (ret == 0)
-        qCDebug(m_log) << "Tuner opened.";
+        qCDebug(log) << "Tuner opened.";
     else
-        qCCritical(m_log) << "Failed to open tuner:" << ret;
+        qCCritical(log) << "Failed to open tuner:" << ret;
 }
 
 void FMRadioHalControl::stop()
@@ -843,9 +843,9 @@ void FMRadioHalControl::stop()
     m_hal->tuner = 0;
 
     if (ret == 0)
-        qCDebug(m_log) << "Tuner closed.";
+        qCDebug(log) << "Tuner closed.";
     else
-        qCWarning(m_log) << "Error when closing tuner:" << ret;
+        qCWarning(log) << "Error when closing tuner:" << ret;
 
     emit stateChanged(QRadioTuner::StoppedState);
 }
