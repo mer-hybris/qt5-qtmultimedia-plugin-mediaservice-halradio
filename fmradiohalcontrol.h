@@ -121,7 +121,9 @@ signals:
     void eventTuned(unsigned channel, bool stereo);
     void eventTA(bool enabled);
     void eventAFSwitch(bool enabled);
+#ifdef SUPPORT_RADIO_EVENT_EA
     void eventEA(bool enabled);
+#endif
     void seekNextChannel();
 
 private slots:
@@ -133,7 +135,9 @@ private slots:
     void handleTuned(unsigned channel, bool stereo);
     void handleTA(bool enabled);
     void handleAFSwitch(bool enabled);
+#ifdef SUPPORT_RADIO_EVENT_EA
     void handleEA(bool enabled);
+#endif
 
 private:
     void openRadio();

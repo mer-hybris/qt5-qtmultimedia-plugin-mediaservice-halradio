@@ -11,6 +11,8 @@ PLUGIN_TYPE = mediaservice
 PLUGIN_CLASS_NAME = FMRadioServicePlugin
 load(qt_plugin)
 
+#DEFINES += SUPPORT_RADIO_EVENT_EA
+
 SOURCES += fmradioserviceplugin.cpp \
            fmradiodatacontrol.cpp \
            fmradioservice.cpp \

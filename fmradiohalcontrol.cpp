@@ -127,9 +127,10 @@ FMRadioHalControl::FMRadioHalControl()
             this, SLOT(handleTA(bool)));
     connect(this, SIGNAL(eventAFSwitch(bool)),
             this, SLOT(handleAFSwitch(bool)));
+#ifdef SUPPORT_RADIO_EVENT_EA
     connect(this, SIGNAL(eventEA(bool)),
             this, SLOT(handleEA(bool)));
-
+#endif
     openRadioMetadata();
     openRadio();
 }
@@ -233,8 +234,9 @@ bool FMRadioHalControl::setRadioConfig(radio_band_t band, radio_deemphasis_t dee
             m_hal->config.fm.rds            = m_hal->properties.bands[i].fm.rds;
             m_hal->config.fm.ta             = m_hal->properties.bands[i].fm.ta;
             m_hal->config.fm.af             = m_hal->properties.bands[i].fm.af;
+#ifdef SUPPORT_RADIO_EVENT_EA
             m_hal->config.fm.ea             = false;
-
+#endif
             return true;
         }
     }
@@ -256,7 +258,9 @@ void FMRadioHalControl::setRadioConfigFallback()
     m_hal->config.fm.rds            = radio_rds_for_region(true, RADIO_REGION_ITU_1);
     m_hal->config.fm.ta             = true;
     m_hal->config.fm.af             = false;
+#ifdef SUPPORT_RADIO_EVENT_EA
     m_hal->config.fm.ea             = false;
+#endif
 }
 
 void FMRadioHalControl::closeRadio()
@@ -759,10 +763,12 @@ void FMRadioHalControl::handleAFSwitch(bool /* unused */)
     qCDebug(m_log) << "Radio AF switch";
 }
 
+#ifdef SUPPORT_RADIO_EVENT_EA
 void FMRadioHalControl::handleEA(bool enabled)
 {
     qCDebug(m_log) << "Radio EA changes to " << (enabled ? "true" : "false");
 }
+#endif
 
 // Called in radio event callback thread
 void FMRadioHalControl::radioEvent(const radio_hal_event_t *event)
@@ -795,11 +801,11 @@ void FMRadioHalControl::radioEvent(const radio_hal_event_t *event)
         case RADIO_EVENT_AF_SWITCH:
             emit eventAFSwitch(event->on);
             break;
-
+#ifdef SUPPORT_RADIO_EVENT_EA
         case RADIO_EVENT_EA:
             emit eventEA(event->on);
             break;
-
+#endif
         // framework internal events
         default: break;
     };
