@@ -42,8 +42,8 @@ extern "C" {
 }
 
 // HAL uses unsigned int kHz, Qt uses int Hz
-#define FREQ_HAL_TO_QT(f)       (static_cast<unsigned int>(f) * 1000)
-#define FREQ_QT_TO_HAL(f)       (static_cast<unsigned>(f) / 1000)
+#define FREQ_HAL_TO_QT(f)       (static_cast<int>(f) * 1000)
+#define FREQ_QT_TO_HAL(f)       (static_cast<unsigned int>(f) / 1000)
 
 #define SEARCH_SCAN_TIMEOUT_MS  (10 * 1000)
 
