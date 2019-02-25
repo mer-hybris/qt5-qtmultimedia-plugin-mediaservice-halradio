@@ -28,7 +28,6 @@
 #include <QAtomicInt>
 #include <QObject>
 #include <QList>
-#include <QLoggingCategory>
 
 #include <system/radio.h>
 
@@ -157,7 +156,6 @@ private:
     void setError(QRadioTuner::Error error);
     void setRdsError(QRadioData::Error error);
 
-    QLoggingCategory m_log;
     HalPrivate *m_hal;
     QRadioTuner::Error m_error;
     QRadioData::Error m_rdsError;
