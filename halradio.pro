@@ -11,6 +11,12 @@ PLUGIN_TYPE = mediaservice
 PLUGIN_CLASS_NAME = FMRadioServicePlugin
 load(qt_plugin)
 
+qtCompileTest(radio_event_ea)
+
+config_radio_event_ea {
+    DEFINES += SUPPORT_RADIO_EVENT_EA
+}
+
 SOURCES += fmradioserviceplugin.cpp \
            fmradiodatacontrol.cpp \
            fmradioservice.cpp \
