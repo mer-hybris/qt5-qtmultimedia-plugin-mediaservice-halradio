@@ -796,9 +796,11 @@ void FMRadioHalControl::radioEvent(const radio_hal_event_t *event)
             emit eventAFSwitch(event->on);
             break;
 
+#ifdef SUPPORT_RADIO_EVENT_EA
         case RADIO_EVENT_EA:
             emit eventEA(event->on);
             break;
+#endif
 
         // framework internal events
         default: break;
