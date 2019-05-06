@@ -12,9 +12,14 @@ PLUGIN_CLASS_NAME = FMRadioServicePlugin
 load(qt_plugin)
 
 qtCompileTest(radio_event_ea)
+qtCompileTest(ld_gold)
 
 config_radio_event_ea {
     DEFINES += SUPPORT_RADIO_EVENT_EA
+}
+
+config_ld_gold {
+    QMAKE_LFLAGS += -fuse-ld=gold
 }
 
 SOURCES += fmradioserviceplugin.cpp \
