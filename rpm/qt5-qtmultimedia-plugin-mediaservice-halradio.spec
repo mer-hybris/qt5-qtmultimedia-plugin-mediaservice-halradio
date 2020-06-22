@@ -36,7 +36,7 @@ Qt5 HAL FM Radio media service plugin
 rm -rf %{buildroot}
 %qmake5_install
 
-rm -f %{buildroot}/usr/lib/cmake/Qt5Multimedia/Qt5Multimedia_FMRadioServicePlugin.cmake
+rm -f %{buildroot}/%{_libdir}/cmake/Qt5Multimedia/Qt5Multimedia_FMRadioServicePlugin.cmake
 
 %files
 %defattr(-,root,root,-)
