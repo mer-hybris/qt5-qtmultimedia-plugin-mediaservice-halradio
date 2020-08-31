@@ -11,6 +11,8 @@ Group:      System/Libraries
 License:    LGPLv2.1
 URL:        https://github.com/mer-hybris/qt5-qtmultimedia-plugin-mediaservice-halradio
 Source0:    %{name}-%{version}.tar.bz2
+# Substitute with a UI app for your distribution:
+Recommends: jolla-mediaplayer-radio
 BuildRequires:  qt5-qtcore-devel
 BuildRequires:  qt5-qmake
 BuildRequires:  pkgconfig(Qt5Core)
